@@ -1,0 +1,373 @@
+Bootstrap: library
+From: centos:7.6
+Stage: build
+
+
+%setup
+
+%files
+
+%post
+    NOW=`date`
+    echo "export NOW=\"${NOW}\"" >> $SINGULARITY_ENVIRONMENT
+	set -e
+    yum -y update
+	yum -y install hostname
+	yum -y install which 
+	yum -y install scl-utils
+	yum -y install centos-release-scl
+	yum -y install yum-utils
+	yum-config-manager --enable centos-sclo-rh-testing
+	# GCC
+	yum -y install devtoolset-8-gcc devtoolset-8-gcc-c++ devtoolset-8-gcc-gfortran
+	yum -y install make autoconf automake
+	source scl_source enable devtoolset-8 || true
+	# Python, skipping for now. scl file does not get installed properly
+	yum -y install openssl-devel bzip2-devel libffi-devel
+	yum -y install rh-python36
+	source scl_source enable rh-python36 || true
+	pip install --upgrade pip
+	pip install numpy pandas matplotlib scikit-learn scipy opencv-contrib-python
+	# Java
+	yum -y install java-1.8.0-openjdk # OpenJDK 8 JRE
+	yum -y install java-1.8.0-openjdk-devel # OpenJDK 8 JDK
+	# Misc installs
+	yum -y install git
+	yum -y install zlib zlib-devel # htslib
+	yum -y install bzip2 bzip2-devel # htslib
+	yum -y install lzma lzma-devel #htslib 
+	yum -y install xz xz-devel #htslib
+	yum -y install libcurl libcurl-devel # samtools
+	yum -y install ncurses ncurses-devel
+	yum -y install unzip
+	yum -y install wget
+	yum -y install gnuplot
+	# Intel Threading Building Blocks 2019 U8
+	echo "/usr/local/lib" >> /etc/ld.so.conf.d/usr_local_lib.conf
+	rm -rf tbb
+	git clone https://github.com/intel/tbb
+	cd tbb
+	make -j 8
+	find . -name '*so' | grep release | xargs -I{} cp {} /usr/local/lib/  # Copy release libs to sys dir
+	find . -name '*so.2' | grep release | xargs -I{} cp {} /usr/local/lib/ 
+	cp -R include/* /usr/local/include/
+	cd ..
+	ldconfig
+	mkdir -p /usr/local/lib64/python3.6/site-packages
+	
+
+%runscript
+    echo "Container was created $NOW"
+    echo "Arguments received: $*"
+    exec echo "$@"
+
+%help
+    Basic Bioinformatics tools
+
+%labels
+	Author tomi.hakkinen@tuni.fi
+	Version 0.26
+
+%environment
+#    GLOBAL=variables
+#    AVAILABLE="to all apps"
+	export PATH=$PATH:/usr/bin:/usr/local/bin/homer/bin
+	source scl_source enable rh-python36 || true
+	export PYTHONPATH=$PYTHONPATH:/usr/local/lib64/python3.6/site-packages/
+	PYTHONWARNINGS=ignore::yaml.YAMLLoadWarning 
+# MultiQC , check https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
+
+# ################### Samtools #################################
+
+%apprun samtools
+	exec samtools
+
+%appinstall samtools
+	source scl_source enable devtoolset-8 || true
+	rm -rf htslib
+	git clone https://github.com/samtools/htslib
+	cd htslib
+	autoheader
+	autoconf
+	./configure
+	make -j 8
+	make install
+	cd ..
+	rm -rf samtools
+	git clone https://github.com/samtools/samtools
+	cd samtools
+	autoheader
+	autoconf -Wno-syntax
+	./configure
+	make -j 8
+	make install
+	cd ..
+
+%apphelp samtools
+	Samtools 1.9. https://github.com/samtools/samtools
+	
+# ######################## Bedtools ###################################
+
+%apprun bedtools
+    exec bedtools
+
+%appinstall bedtools
+	source scl_source enable devtoolset-8 || true
+	rm -rf bedtools2
+	git clone https://github.com/arq5x/bedtools2/
+	cd bedtools2
+	make -j 8 
+	cp bin/* /usr/local/bin/
+
+%apphelp bedtools
+    Bedtools 2.28.0. https://github.com/arq5x/bedtools2/
+
+
+# ######################## FastQC ###################################
+
+%apprun fastqc
+	exec fastqc
+
+%appinstall fastqc
+	#git clone https://github.com/s-andrews/FastQC
+	cd /usr/local/bin
+	wget http://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.11.8.zip
+	unzip -o fastqc_v0.11.8.zip
+	chmod +x FastQC/fastqc
+	ln -sf FastQC/fastqc .
+	rm fastqc_v0.11.8.zip
+
+%apphelp fastqc
+	FastQC v0.11.8. https://github.com/s-andrews/FastQC
+
+
+# ######################## Bowtie2 ################################
+
+%apprun bowtie2
+	exec bowtie2
+
+%appinstall bowtie2
+	wget -O bowtie.zip https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.3.5.1/bowtie2-2.3.5.1-source.zip/download
+	unzip -o bowtie.zip
+	cd bowtie2-2.3.5.1
+	make -j 8
+	cp bowtie2* /usr/local/bin/
+	cd ..
+	
+	
+%apphelp bowtie2
+	Bowtie 2 v. 2.3.5.1 . http://bowtie-bio.sourceforge.net/bowtie2/index.shtml
+
+
+# ######################## MultiQC ##################################
+
+%apprun multiqc
+	exec multiqc
+
+%appinstall multiqc
+	source scl_source enable rh-python36 || true
+	pip install  git+https://github.com/ewels/MultiQC.git
+	#pip install multiqc	# old, complains about yaml
+	#git clone https://github.com/ewels/MultiQC
+
+%apphelp multiqc
+	MultiQC v1.8dev. https://multiqc.info/
+
+# ######################## Cutadapt ################################
+
+%apprun cutadapt
+	exec cutadapt
+
+%appinstall cutadapt
+	source scl_source enable devtoolset-8 || true
+	source scl_source enable rh-python36 || true
+	pip install cutadapt
+
+%apphelp cutadapt
+	Cutadapt 2.4.. https://cutadapt.readthedocs.io/en/stable/guide.html
+
+# ######################### STAR ###################################
+
+%apprun star
+	exec star
+
+%appinstall star
+	source scl_source enable devtoolset-8 || true
+	rm -rf STAR
+	git clone https://github.com/alexdobin/STAR.git
+	cd STAR/source
+	make -j 8 STAR
+	cp STAR /usr/local/bin/
+	ln -sf /usr/local/bin/STAR /usr/local/bin/star
+	cd ..
+	cd ..
+
+%apphelp star
+	STAR 2.7.1a. https://github.com/alexdobin/STAR
+
+# ######################## HISAT2 #################################
+
+%apprun hisat2
+	exec hisat2
+
+%appinstall hisat2
+	rm -rf hisat2-2.1.0
+	source scl_source enable devtoolset-8 || true
+	wget http://ccb.jhu.edu/software/hisat2/dl/hisat2-2.1.0-source.zip
+	unzip hisat2-2.1.0-source.zip 
+	cd hisat2-2.1.0
+	make -j 8
+	#find . -name '*py' | xargs -I{} cp {} /usr/local/bin/
+	find . -executable -type f | grep -v tinythread | xargs -I{} cp {} /usr/local/bin/
+	cd ..
+
+%apphelp hisat2
+	HISAT2 2.1.0. https://ccb.jhu.edu/software/hisat2/index.shtml
+
+
+# ######################## Picard #########################
+
+%apprun picard
+	exec picard
+
+%appinstall picard
+	wget https://github.com/broadinstitute/picard/releases/download/2.20.5/picard.jar
+	mv picard.jar /usr/local/bin
+	echo "#"'!'"/usr/bin/bash" > /usr/local/bin/picard
+	echo "java -jar /usr/local/bin/picard.jar \"\$@\"" >> /usr/local/bin/picard
+	chmod +x /usr/local/bin/picard
+
+%apphelp picard
+	Picard 2.20.5. http://broadinstitute.github.io/picard/
+
+
+# ######################### Trimmomatic #######################
+
+%apprun trimmomatic
+	exec trimmomatic
+
+%appinstall trimmomatic
+	wget http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.39.zip
+	unzip -o Trimmomatic-0.39.zip -d /usr/local/bin
+	echo "#"'!'"/usr/bin/bash" > /usr/local/bin/trimmomatic
+	echo "java -jar /usr/local/bin/Trimmomatic-0.39/trimmomatic-0.39.jar \"\$@\"" >> /usr/local/bin/trimmomatic
+	chmod +x /usr/local/bin/trimmomatic
+	rm Trimmomatic-0.39.zip
+
+%apphelp trimmomatic
+	Trimmomatic 0.39. http://www.usadellab.org/cms/?page=trimmomatic
+
+
+# ######################### Samblaster ############################
+
+%apprun samblaster
+	exec samblaster
+
+%appinstall samblaster
+	git clone git://github.com/GregoryFaust/samblaster.git
+	cd samblaster
+	make -j 8
+	cp samblaster /usr/local/bin/
+
+%apphelp samblaster
+	Samblaster 0.1.24 . https://github.com/GregoryFaust/samblaster
+
+
+# ########################## VarScan #################################
+
+%apprun varscan
+	exec varscan
+
+%appinstall varscan
+	wget https://github.com/dkoboldt/varscan/raw/master/VarScan.v2.4.4.jar
+	mv VarScan.v2.4.4.jar /usr/local/bin/
+	echo "#"'!'"/usr/bin/bash" > /usr/local/bin/varscan
+	echo "java -jar /usr/local/bin/VarScan.v2.4.4.jar \"\$@\"" >> /usr/local/bin/varscan
+	chmod +x /usr/local/bin/varscan
+	
+%apphelp varscan
+	VarScan 2.4.4 . https://github.com/dkoboldt/varscan
+
+
+# ########################### VcfAnno ###############################
+
+%apprun vcfanno
+	exec vcfanno
+
+%appinstall vcfanno
+	wget https://github.com/brentp/vcfanno/releases/download/v0.3.2/vcfanno_linux64 -O /usr/local/bin/vcfanno
+	chmod +x /usr/local/bin/vcfanno
+
+%apphelp vcfanno
+	VcfAnno 0.3.2 . https://github.com/brentp/vcfanno/releases/
+
+
+# ############################ Plink ##################################
+
+%apprun plink
+	exec plink
+
+%appinstall plink
+	wget http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20190617.zip
+	unzip plink_linux_x86_64_20190617.zip
+	mv plink /usr/local/bin/
+	mv prettify /usr/local/bin/
+
+%apphelp plink
+	PLINK v1.90b6.10 64-bit (17 Jun 2019) . https://www.cog-genomics.org/plink2
+
+
+# ############################ MACS2 ######################################
+
+%apprun macs2
+	exec macs2
+
+%appinstall macs2
+	source scl_source enable devtoolset-8 || true
+	source scl_source enable rh-python36 || true
+	export PYTHONPATH=$PYTHONPATH:/usr/local/lib64/python3.6/site-packages/
+	git clone https://github.com/taoliu/MACS.git
+	cd MACS/
+	python setup.py install --prefix /usr/local
+
+%apphelp macs2
+	MACS2 2.2.4 ( Oct 7 2019) . https://github.com/taoliu/MACS
+
+# ############################ Homer ########################
+
+%apprun homer
+	exec homer
+
+%appinstall homer
+	source scl_source enable devtoolset-8 || true
+	mkdir -p /usr/local/bin/homer
+	cd /usr/local/bin/homer
+	wget http://homer.ucsd.edu/homer/configureHomer.pl
+	perl configureHomer.pl -install
+
+%apphelp homer
+	Homer 4.10 ( Oct 7 2019 ) . http://homer.ucsd.edu/homer/
+
+# ############################ Nextflow #######################
+
+%apprun nextflow
+	exec nextflow
+
+%appinstall nextflow
+	cd /usr/local/bin
+	curl -s https://get.nextflow.io | bash
+
+%apphelp nextflow
+	Nextflow 19.09 ( Oct 7 2019 ) . https://www.nextflow.io/index.html
+
+# ############################ nf-core ########################
+
+#%apprun nf-core
+#	exec nf-core
+
+#%appinstall nf-core
+#	source scl_source enable rh-python36 || true
+#	pip install nf-core
+
+#%apphelp nf-core
+#	nf-core . https://github.com/nf-core/tools	
