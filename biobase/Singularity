@@ -1,5 +1,5 @@
-Bootstrap: library
-From: centos:7.6
+Bootstrap: docker
+From: centos:7
 Stage: build
 
 
