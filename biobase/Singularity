@@ -66,12 +66,14 @@ Stage: build
 
 %labels
 	Author tomi.hakkinen@tuni.fi
-	Version 0.26
+	Version 0.27
 
 %environment
 #    GLOBAL=variables
 #    AVAILABLE="to all apps"
 	export PATH=$PATH:/usr/bin:/usr/local/bin/homer/bin
+	LANG="en_US.UTF-8"
+	export LANG
 	source scl_source enable rh-python36 || true
 	export PYTHONPATH=$PYTHONPATH:/usr/local/lib64/python3.6/site-packages/
 	PYTHONWARNINGS=ignore::yaml.YAMLLoadWarning 
@@ -358,18 +360,21 @@ Stage: build
 %appinstall nextflow
 	cd /usr/local/bin
 	curl -s https://get.nextflow.io | bash
+	chmod 777 /usr/local/bin/nextflow
 
 %apphelp nextflow
 	Nextflow 19.09 ( Oct 7 2019 ) . https://www.nextflow.io/index.html
 
 # ############################ nf-core ########################
 
-#%apprun nf-core
-#	exec nf-core
+%apprun nfcore
+	exec nf-core
 
-#%appinstall nf-core
-#	source scl_source enable rh-python36 || true
-#	pip install nf-core
+%appinstall nfcore
+	LANG="en_US.UTF-8"
+	export LANG
+	source scl_source enable rh-python36 || true
+	pip install --upgrade --force-reinstall git+https://github.com/nf-core/tools.git
 
-#%apphelp nf-core
-#	nf-core . https://github.com/nf-core/tools	
+%apphelp nfcore
+	Nf-Core . https://nf-co.re/ . A community effort to collect a curated set of analysis pipelines built using Nextflow.
