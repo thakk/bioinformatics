@@ -385,6 +385,8 @@ Stage: build
 	exec mageck
 
 %appinstall mageck
+	source scl_source enable rh-python36 || true
+	source scl_source enable devtoolset-8 || true	
 	wget "https://downloads.sourceforge.net/project/mageck/0.5/liulab-mageck-0.5.9.2.tar.gz"
 	tar zxvf liulab-mageck-0.5.9.2.tar.gz
 	cd liulab-mageck-ef7c39474ed0
