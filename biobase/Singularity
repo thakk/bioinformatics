@@ -66,7 +66,7 @@ Stage: build
 
 %labels
 	Author tomi.hakkinen@tuni.fi
-	Version 0.27
+	Version 0.28
 
 %environment
 #    GLOBAL=variables
@@ -378,3 +378,17 @@ Stage: build
 
 %apphelp nfcore
 	Nf-Core . https://nf-co.re/ . A community effort to collect a curated set of analysis pipelines built using Nextflow.
+
+# ############################ MAGeCK ########################
+
+%apprun mageck
+	exec mageck
+
+%appinstall mageck
+	wget "https://downloads.sourceforge.net/project/mageck/0.5/liulab-mageck-0.5.9.2.tar.gz"
+	tar zxvf liulab-mageck-0.5.9.2.tar.gz
+	cd liulab-mageck-ef7c39474ed0
+	python setup.py install
+
+%apphelp mageck
+	MAGeCK (0.5.9.2) enables robust identification of essential genes from genome-scale CRISPR/Cas9 knockout screens
