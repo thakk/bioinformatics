@@ -376,7 +376,7 @@ Stage: build
 %environment
 #    GLOBAL=variables
 #    AVAILABLE="to all apps"
-   export PATH=$PATH:/usr/bin:/usr/local/bin/homer/bin:/opt/ucsc_tools
+   export PATH=$PATH:/usr/bin:/usr/local/bin/homer/bin:/opt/ucsc_tools:/opt/Bismark-0.22.3
    LANG="en_US.UTF-8"
    export LANG
    PYTHONWARNINGS=ignore::yaml.YAMLLoadWarning
@@ -713,11 +713,7 @@ Stage: build
 
 %appinstall bismark
     curl -fsSL https://github.com/FelixKrueger/Bismark/archive/0.22.3.tar.gz -o Bismark_0.22.3.tar.gz
-    tar xzf Bismark_0.22.3.tar.gz
-    cd Bismark-0.22.3
-    find . -type f -executable |xargs -I{} cp {} /usr/local/bin/
-    cd ..
-    rm -r Bismark-0.22.3
+    tar xzf Bismark_0.22.3.tar.gz -C /opt/
 
 %apphelp bismark
     Bismark (0.22.3) . https://github.com/FelixKrueger/Bismark
